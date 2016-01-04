@@ -194,7 +194,7 @@
      <property name="title">
       <string>Norm</string>
      </property>
-     <widget class="QRadioButton" name="nn_2">
+     <widget class="QRadioButton" name="norm1">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -207,7 +207,7 @@
        <string>Norm&amp;1</string>
       </property>
      </widget>
-     <widget class="QRadioButton" name="knn_2">
+     <widget class="QRadioButton" name="norm2">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -220,7 +220,7 @@
        <string>Norm&amp;2</string>
       </property>
      </widget>
-     <widget class="QRadioButton" name="knn_3">
+     <widget class="QRadioButton" name="norm3">
       <property name="geometry">
        <rect>
         <x>10</x>
@@ -233,7 +233,7 @@
        <string>Norm&amp;3</string>
       </property>
      </widget>
-     <widget class="QRadioButton" name="knn_4">
+     <widget class="QRadioButton" name="norm4">
       <property name="geometry">
        <rect>
         <x>10</x>

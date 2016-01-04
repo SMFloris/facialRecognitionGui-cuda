@@ -48,6 +48,26 @@ void proprietati()
         }
 }
 
+__global__ void vecDiv(float *a, float *b, float *c, unsigned int n)
+{
+    // Get our global thread ID
+    int id = blockIdx.x*blockDim.x+threadIdx.x;
+
+    // Make sure we do not go out of bounds
+    if (id < n)
+        c[id] = a[id] / b[id];
+}
+
+__global__ void vecProd(float *a, float *b, float *c, unsigned int n)
+{
+    // Get our global thread ID
+    int id = blockIdx.x*blockDim.x+threadIdx.x;
+
+    // Make sure we do not go out of bounds
+    if (id < n)
+        c[id] = a[id] * b[id];
+}
+
 __global__ void vecAdd(float *a, float *b, float *c, unsigned int n)
 {
     // Get our global thread ID
@@ -229,7 +249,7 @@ float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
         if(sum[i]<min)
             min=sum[i];
     }
-    printf("%f ",sqrtf(min));
+    printf("%f ",sqrtf(abs(min)));
 
     cudaFree(d_a);
     cudaFree(d_b);
@@ -243,5 +263,174 @@ float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
 
 
 
-    return sqrtf(min);
+    return sqrtf(abs(min));
+}
+
+// a imagini
+// b imagine
+float cityblockNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
+{
+    float *d_a,*d_b,*d_rez,*d_temp;
+    float *sum;
+
+    cudaStream_t stream;
+
+    cudaStreamCreate(&stream);
+
+    cudaHostRegister((void **)&a, n*nrPoze*sizeof(float), cudaHostRegisterPortable);
+    cudaHostAlloc((void **)&sum, nrPoze*sizeof(float), cudaHostAllocDefault);
+
+    cudaMalloc((void **)&d_a,n*sizeof(float));
+    cudaMalloc((void **)&d_b,n*sizeof(float));
+    cudaMalloc((void **)&d_temp,n*sizeof(float));
+    cudaMalloc((void **)&d_rez,(n/64+(256-n/64))*sizeof(float));
+
+    //cudaMemcpy(d_a,a,n*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b,b,n*sizeof(float),cudaMemcpyHostToDevice);
+    for(unsigned long int i=0, k=0; i<n, k< nrPoze; i+= n, k++)
+    {
+        cudaMemcpyAsync(d_a,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream);
+
+        vecSub<<<n/64, 64, n*sizeof(float), stream>>>(d_a,d_b,d_temp, n);
+        reductionSum<<<n/64, 64, n*sizeof(float), stream>>>(d_temp,d_rez, n);
+        cudaMemsetAsync(d_rez+n/64,0,95*sizeof(float),stream);
+        reductionSum<<<1,256, n*sizeof(float), stream>>>(d_rez,d_temp,n);
+        //cumSum<<<n/64, n/64, n*sizeof(float)>>>(d_rez,d_temp, n/64);
+
+        cudaMemcpyAsync(sum+k,d_temp,sizeof(float),cudaMemcpyDeviceToHost, stream);
+    }
+
+
+
+    cudaStreamSynchronize(stream);
+
+    float min = sum[0];
+    for(int i=0;i<nrPoze;i++)
+    {
+        if(sum[i]<min)
+            min=sum[i];
+    }
+    printf("%f ", min);
+
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_temp);
+    cudaFree(d_rez);
+
+    cudaFreeHost(sum);
+    cudaHostUnregister(a);
+
+    cudaStreamDestroy(stream);
+
+    return min;
+}
+
+// a imagini
+// b imagine
+float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
+{
+    float *d_a,*d_b,*d_rez,*d_temp;
+    float *d_a1,*d_b1,*d_rez1, *d_temp1;
+    float *d_a2,*d_b2,*d_rez2, *d_temp2;
+    float *dotProd, *normA, *normB;
+
+    cudaStream_t stream, stream1, stream2;
+
+    cudaStreamCreate(&stream);
+    cudaStreamCreate(&stream1);
+    cudaStreamCreate(&stream2);
+
+    cudaHostRegister((void **)&a, n*nrPoze*sizeof(float), cudaHostRegisterPortable);
+    cudaHostAlloc((void **)&dotProd, nrPoze*sizeof(float), cudaHostAllocDefault);
+    cudaHostAlloc((void **)&normA, nrPoze*sizeof(float), cudaHostAllocDefault);
+    cudaHostAlloc((void **)&normB, nrPoze*sizeof(float), cudaHostAllocDefault);
+
+    cudaMalloc((void **)&d_a,n*sizeof(float));
+    cudaMalloc((void **)&d_b,n*sizeof(float));
+    cudaMalloc((void **)&d_temp,n*sizeof(float));
+    cudaMalloc((void **)&d_rez,(n/64+(256-n/64))*sizeof(float));
+
+    cudaMalloc((void **)&d_a1,n*sizeof(float));
+    cudaMalloc((void **)&d_b1,n*sizeof(float));
+    cudaMalloc((void **)&d_temp1,n*sizeof(float));
+    cudaMalloc((void **)&d_rez1,(n/64+(256-n/64))*sizeof(float));
+
+    cudaMalloc((void **)&d_a2,n*sizeof(float));
+    cudaMalloc((void **)&d_b2,n*sizeof(float));
+    cudaMalloc((void **)&d_temp2,n*sizeof(float));
+    cudaMalloc((void **)&d_rez2,(n/64+(256-n/64))*sizeof(float));
+
+    //cudaMemcpy(d_a,a,n*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b,b,n*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b1,b,n*sizeof(float),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b2,b,n*sizeof(float),cudaMemcpyHostToDevice);
+    for(unsigned long int i=0, k=0; i<n, k< nrPoze; i+= n, k++)
+    {
+        cudaMemcpyAsync(d_a,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream);
+        cudaMemcpyAsync(d_a1,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream1);
+        cudaMemcpyAsync(d_a2,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream2);
+
+        vecProd<<<n/64, 64, n*sizeof(float), stream>>>(d_a,d_b,d_temp, n);
+        vecProd<<<n/64, 64, n*sizeof(float), stream1>>>(d_a1,d_a1,d_temp1, n);
+        vecProd<<<n/64, 64, n*sizeof(float), stream2>>>(d_a2,d_b2,d_temp2, n);
+
+        reductionSum<<<n/64, 64, n*sizeof(float), stream>>>(d_temp,d_rez, n);
+        reductionSum<<<n/64, 64, n*sizeof(float), stream1>>>(d_temp1,d_rez1, n);
+        reductionSum<<<n/64, 64, n*sizeof(float), stream2>>>(d_temp2,d_rez2, n);
+        cudaMemsetAsync(d_rez+n/64,0,95*sizeof(float),stream);
+        cudaMemsetAsync(d_rez1+n/64,0,95*sizeof(float),stream1);
+        cudaMemsetAsync(d_rez2+n/64,0,95*sizeof(float),stream2);
+        reductionSum<<<1,256, n*sizeof(float), stream>>>(d_rez,d_temp,n);
+        reductionSum<<<1,256, n*sizeof(float), stream1>>>(d_rez1,d_temp1,n);
+        reductionSum<<<1,256, n*sizeof(float), stream2>>>(d_rez2,d_temp2,n);
+
+        // we now have in d_temp - dot product, d_temp1 - norm of a, d_temp2 norm of b
+
+        cudaMemcpyAsync(dotProd+k,d_temp,sizeof(float),cudaMemcpyDeviceToHost, stream);
+        cudaMemcpyAsync(normA+k,d_temp1,sizeof(float),cudaMemcpyDeviceToHost, stream1);
+        cudaMemcpyAsync(normB+k,d_temp2,sizeof(float),cudaMemcpyDeviceToHost, stream2);
+    }
+
+
+
+    cudaStreamSynchronize(stream);
+    cudaStreamSynchronize(stream1);
+    cudaStreamSynchronize(stream2);
+
+    float min = 1-dotProd[0]/(normA[0]*normA[0]);
+    for(int i=0;i<nrPoze;i++)
+    {
+        float calc = 1-dotProd[i]/(normA[i]*normA[i]);
+        if(calc<min)
+            min=calc;
+    }
+    printf("%f ", min);
+
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_temp);
+    cudaFree(d_rez);
+
+    cudaFree(d_a1);
+    cudaFree(d_b2);
+    cudaFree(d_temp1);
+    cudaFree(d_rez1);
+
+    cudaFree(d_a2);
+    cudaFree(d_b2);
+    cudaFree(d_temp2);
+    cudaFree(d_rez2);
+
+    cudaFreeHost(dotProd);
+    cudaFreeHost(normA);
+    cudaFreeHost(normB);
+    cudaHostUnregister(a);
+
+    cudaStreamDestroy(stream);
+    cudaStreamDestroy(stream1);
+    cudaStreamDestroy(stream2);
+
+
+
+    return min;
 }

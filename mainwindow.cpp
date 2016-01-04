@@ -14,7 +14,9 @@
 extern void cumSum(float *out, float *in, unsigned int n);
 extern void test1(float *a, float *b, unsigned long n);
 
+extern float cityblockNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze);
 extern float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze);
+extern float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze);
 
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -50,31 +52,82 @@ void MainWindow::on_select_clicked()
 
 void MainWindow::on_start_clicked()
 {
-    int idImgCautata = 9;
-    float *imagineCautata;
-
-    QGraphicsScene* scene = new QGraphicsScene();
-    QGraphicsView* view = new QGraphicsView(scene);
-
-    for(int i=1;i<=40;i++)
+    bool startOk = false;
+    if(ui->nn->isChecked())
     {
-        ImageSet imgSet(QString("orl_faces"),i,10);
-        imgSet.load();
-        for(int k=0;k<10;k++)
-        {
-            imgSet.loadUp(k);
-        }
-        if(i*10-idImgCautata>=0 && i*10-idImgCautata<10)
-        {
-            imagineCautata = imgSet.getImage(i*10-idImgCautata)->getArray();
+        if(!(ui->norm1->isChecked() || ui->norm2->isChecked() || ui->norm3->isChecked()))
+            return;
+        int idSetImgCautata = 1;
+        int idImgCautata = 8;
+        float *imagineCautata;
 
-            QGraphicsPixmapItem* item = new QGraphicsPixmapItem(QPixmap::fromImage(imgSet.getQImage(i*10-idImgCautata)));
-            scene->addItem(item);
-            ui->img2->setScene(scene);
-            imgSet.freeUp(i*10-idImgCautata);
+
+
+        int min, mini;
+
+        for(int i=1;i<=40;i++)
+        {
+            ImageSet imgSet(QString("orl_faces"),i,10);
+            imgSet.load();
+
+            bool found = false;
+            for(int k=0;k<10;k++)
+            {
+                imgSet.loadUp(k);
+                if(i==idSetImgCautata && k==idImgCautata)
+                {
+                    imagineCautata = imgSet.getImage(k)->getArray();
+                    QGraphicsScene* scene = new QGraphicsScene();
+                    QGraphicsView* view = new QGraphicsView(scene);
+                    QGraphicsPixmapItem* item = new QGraphicsPixmapItem(QPixmap::fromImage(imgSet.getQImage(k)));
+                    scene->addItem(item);
+                    ui->img2->setScene(scene);
+                    found = true;
+                }
+            }
+            if(found == true)
+            {
+                imgSet.freeUp(idImgCautata);
+            }
+
+            float *imaginiSet = imgSet.loadedToFloat();
+            float rez;
+
+            if(ui->norm1->isChecked())
+            {
+                rez = cityblockNormAsync(imaginiSet,imagineCautata,10304,imgSet.count());
+            }
+            if(ui->norm2->isChecked())
+            {
+                rez = euclideanNormAsync(imaginiSet,imagineCautata,10304,imgSet.count());
+            }
+            if(ui->norm3->isChecked())
+            {
+                rez = euclideanNormAsync(imaginiSet,imagineCautata,10304,imgSet.count());
+            }
+
+            if(i==1)
+            {
+                min = rez;
+                mini = i;
+            } else
+            {
+                if(rez<min)
+                {
+                    min = rez;
+                    mini = i;
+                }
+            }
+
         }
-        float *imaginiSet = imgSet.loadedToFloat();
-        float a = euclideanNormAsync(imaginiSet,imagineCautata,10304,imgSet.count());
+        ImageSet imgSet(QString("orl_faces"),mini,10);
+        imgSet.load();
+        imgSet.loadUp(0);
+        QGraphicsScene* scene = new QGraphicsScene();
+        QGraphicsView* view = new QGraphicsView(scene);
+        QGraphicsPixmapItem* item = new QGraphicsPixmapItem(QPixmap::fromImage(imgSet.getQImage(0)));
+        scene->addItem(item);
+        ui->img1->setScene(scene);
     }
 
     /*
