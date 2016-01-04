@@ -210,7 +210,7 @@ float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
     {
         cudaMemcpyAsync(d_a,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream);
 
-        eulVector<<<n/64, 64, n*sizeof(float)>>>(d_a,d_b,d_temp, n);
+        eulVector<<<n/64, 64, n*sizeof(float), stream>>>(d_a,d_b,d_temp, n);
         reductionSum<<<n/64, 64, n*sizeof(float), stream>>>(d_temp,d_rez, n);
         cudaMemsetAsync(d_rez+n/64,0,95*sizeof(float),stream);
         reductionSum<<<1,256, n*sizeof(float), stream>>>(d_rez,d_temp,n);
