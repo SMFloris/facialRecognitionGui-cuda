@@ -35,7 +35,7 @@
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>Currently comparing with</string>
+          <string>Result</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -187,7 +187,7 @@
       <rect>
        <x>10</x>
        <y>130</y>
-       <width>111</width>
+       <width>131</width>
        <height>141</height>
       </rect>
      </property>
@@ -199,12 +199,12 @@
        <rect>
         <x>10</x>
         <y>30</y>
-        <width>91</width>
+        <width>121</width>
         <height>21</height>
        </rect>
       </property>
       <property name="text">
-       <string>Norm&amp;1</string>
+       <string>&amp;Manhattan norm</string>
       </property>
      </widget>
      <widget class="QRadioButton" name="norm2">
@@ -212,12 +212,12 @@
        <rect>
         <x>10</x>
         <y>50</y>
-        <width>101</width>
+        <width>121</width>
         <height>21</height>
        </rect>
       </property>
       <property name="text">
-       <string>Norm&amp;2</string>
+       <string>Euclidean norm</string>
       </property>
      </widget>
      <widget class="QRadioButton" name="norm3">
@@ -230,7 +230,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>Norm&amp;3</string>
+       <string>Cosine Norm</string>
       </property>
      </widget>
      <widget class="QRadioButton" name="norm4">
@@ -243,7 +243,7 @@
        </rect>
       </property>
       <property name="text">
-       <string>Norm&amp;4</string>
+       <string>Infinity Norm</string>
       </property>
      </widget>
     </widget>

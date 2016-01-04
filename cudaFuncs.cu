@@ -207,7 +207,7 @@ void test1(float *a, float *b, unsigned long n)
 
 // a imagini
 // b imagine
-float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
+void euclideanNormAsync(float *a, float *b, unsigned long n, float *result, unsigned long nrPoze)
 {
     float *d_a,*d_b,*d_rez,*d_temp;
     float *sum;
@@ -243,13 +243,10 @@ float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
 
     cudaStreamSynchronize(stream);
 
-    float min = sum[0];
     for(int i=0;i<nrPoze;i++)
     {
-        if(sum[i]<min)
-            min=sum[i];
+        result[i] = sum[i];
     }
-    printf("%f ",sqrtf(abs(min)));
 
     cudaFree(d_a);
     cudaFree(d_b);
@@ -260,15 +257,11 @@ float euclideanNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
     cudaHostUnregister(a);
 
     cudaStreamDestroy(stream);
-
-
-
-    return sqrtf(abs(min));
 }
 
 // a imagini
 // b imagine
-float cityblockNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
+void cityblockNormAsync(float *a, float *b, unsigned long n, float *result, unsigned long nrPoze)
 {
     float *d_a,*d_b,*d_rez,*d_temp;
     float *sum;
@@ -304,13 +297,11 @@ float cityblockNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
 
     cudaStreamSynchronize(stream);
 
-    float min = sum[0];
     for(int i=0;i<nrPoze;i++)
     {
-        if(sum[i]<min)
-            min=sum[i];
+        result[i] = sum[i];
     }
-    printf("%f ", min);
+    //printf("%f ", min);
 
     cudaFree(d_a);
     cudaFree(d_b);
@@ -321,13 +312,11 @@ float cityblockNormAsync(float *a, float *b, unsigned long n, unsigned long nrPo
     cudaHostUnregister(a);
 
     cudaStreamDestroy(stream);
-
-    return min;
 }
 
 // a imagini
 // b imagine
-float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
+void cosNormAsync(float *a, float *b, unsigned long n, float *result, unsigned long nrPoze)
 {
     float *d_a,*d_b,*d_rez,*d_temp;
     float *d_a1,*d_b1,*d_rez1, *d_temp1;
@@ -368,20 +357,24 @@ float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
     {
         cudaMemcpyAsync(d_a,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream);
         cudaMemcpyAsync(d_a1,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream1);
-        cudaMemcpyAsync(d_a2,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream2);
+        cudaMemcpyAsync(d_a2,a+i,n*sizeof(float),cudaMemcpyHostToDevice, stream1);
 
         vecProd<<<n/64, 64, n*sizeof(float), stream>>>(d_a,d_b,d_temp, n);
-        vecProd<<<n/64, 64, n*sizeof(float), stream1>>>(d_a1,d_a1,d_temp1, n);
-        vecProd<<<n/64, 64, n*sizeof(float), stream2>>>(d_a2,d_b2,d_temp2, n);
+        vecProd<<<n/64, 64, n*sizeof(float), stream1>>>(d_a1,d_a2,d_temp1, n);
+        if(i==0)
+        vecProd<<<n/64, 64, n*sizeof(float), stream2>>>(d_b1,d_b2,d_temp2, n);
 
         reductionSum<<<n/64, 64, n*sizeof(float), stream>>>(d_temp,d_rez, n);
         reductionSum<<<n/64, 64, n*sizeof(float), stream1>>>(d_temp1,d_rez1, n);
+        if(i==0)
         reductionSum<<<n/64, 64, n*sizeof(float), stream2>>>(d_temp2,d_rez2, n);
         cudaMemsetAsync(d_rez+n/64,0,95*sizeof(float),stream);
         cudaMemsetAsync(d_rez1+n/64,0,95*sizeof(float),stream1);
+        if(i==0)
         cudaMemsetAsync(d_rez2+n/64,0,95*sizeof(float),stream2);
         reductionSum<<<1,256, n*sizeof(float), stream>>>(d_rez,d_temp,n);
         reductionSum<<<1,256, n*sizeof(float), stream1>>>(d_rez1,d_temp1,n);
+        if(i==0)
         reductionSum<<<1,256, n*sizeof(float), stream2>>>(d_rez2,d_temp2,n);
 
         // we now have in d_temp - dot product, d_temp1 - norm of a, d_temp2 norm of b
@@ -397,14 +390,13 @@ float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
     cudaStreamSynchronize(stream1);
     cudaStreamSynchronize(stream2);
 
-    float min = 1-dotProd[0]/(normA[0]*normA[0]);
     for(int i=0;i<nrPoze;i++)
     {
-        float calc = 1-dotProd[i]/(normA[i]*normA[i]);
-        if(calc<min)
-            min=calc;
+        float calc = 1 - dotProd[i]/(sqrtf(normA[i])*sqrtf(normB[i]));
+        result[i] = isnan(calc)?1:calc;
     }
-    printf("%f ", min);
+
+    //printf("%f ",result[0]);
 
     cudaFree(d_a);
     cudaFree(d_b);
@@ -429,8 +421,4 @@ float cosNormAsync(float *a, float *b, unsigned long n, unsigned long nrPoze)
     cudaStreamDestroy(stream);
     cudaStreamDestroy(stream1);
     cudaStreamDestroy(stream2);
-
-
-
-    return min;
 }
